@@ -11,20 +11,16 @@ app.post('/check-answer', async (req, res) => {
     try {
         const question = req.body.question;
         const answer = req.body.answer;
-        console.log(question);
-        console.log(answer);
+
         const prompt = `Q: ${question}\nA: ${answer}\nQ: Is the user's answer correct?`;
-        console.log(prompt);
 
         const response = await openai.createCompletion({
-            engine: 'davinci-codex',
+            model: 'text-davinci-003',
             prompt: prompt,
-            maxTokens: 512,
-            temperature: 0,
         });
 
-        const generatedResponse = response.choices[0].text.trim();
-        const isCorrect = generatedResponse.toLowerCase() === 'yes';
+        const generatedResponse = response.data.choices[0].text.trim();
+        const isCorrect = generatedResponse.toLowerCase().includes('yes');
 
         res.json({ isCorrect: isCorrect });
     } catch (error) {
@@ -37,28 +33,24 @@ app.post('/generate-feedback', async (req, res) => {
         const questions = req.body.questions;
         const answers = req.body.answers;
 
-        const chatHistory = [
-            { role: 'system', content: 'You are conducting an interview.' },
-            { role: 'interviewer', content: `Q: ${question}` },
-            { role: 'applicant', content: `A: ${answer}` },
-        ];
-      
-        for (let i = 0; i < questions.length; i++) {
-            chatHistory.push({ role: 'interviewer', content: `Q: ${questions[i]}` });
-            chatHistory.push({ role: 'applicant', content: `A: ${answers[i]}` });
-        }
+        var prompt = "";
 
-        const response = await openai.chatCompletion.create({
-            messages: chatHistory,
+        for (let i = 0; i < questions.length; i++) {
+            prompt += `Q: ${questions[i]}\nA: ${answers[i]}\nQ: Is the user's answer correct? If not give an explanation`;
+        }
+        prompt += "Q: Provide a compiled explaination on the wrong answers.";
+
+        const response = await openai.createCompletion({
+            model: 'text-davinci-003',
+            prompt: prompt,
+            max_tokens: 512,
+            temperature: 0
         });
 
-        const generatedResponses = response.choices
-            .map((choice) => choice.message.content.trim())
-            .slice(1);
+        const generatedResponse = response.data.choices[0].text.trim(); 
 
-        res.json({ feedback: generatedResponses });
+        res.json({ feedback: generatedResponse });
     } catch (error) {
-        // console.log(error);
         res.status(500).json({ error: 'An error occurred.' });
     }
 });
